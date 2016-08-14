@@ -1,0 +1,57 @@
+<project name="JCSG" default="jar" basedir=".">
+    <description>
+        ant build/run file
+    </description>
+    
+    <path id="classpath">
+        <fileset dir="../libs/" includes="**/*.jar"/>
+    </path>
+        
+    <target
+        name="clean"
+        description="removes all classes" >
+        <delete>
+            <fileset dir="build" includes="**/*.class"/>
+        </delete>
+    </target>
+
+    <target 
+        name="compile"
+        description="compile the source " >
+
+
+        <javac 
+            destdir="build"
+            includeantruntime="false"
+            excludes="**/samples/**"
+        >
+            <src path="./JCSG/src/main/java/"/>
+            
+			<compilerarg value="-Xlint:all" />
+			<!--<compilerarg value="-Werror" />-->
+            <!-- maxerrs param must be seperate or space is picked up as a param -->
+            <compilerarg value="-Xmaxerrs" />
+            <compilerarg value="1" />
+            <classpath refid="classpath"/>
+        </javac>
+    </target>
+    
+    <target name="jar" depends="compile" >
+        <delete file="../libs/JCSG.jar"/>
+        <jar destfile="../libs/JCSG.jar" basedir="build" excludes="**/*.jar"/>
+    </target>
+
+    <target name="doc">
+        <javadoc
+           destdir="docs/api"
+           author="true"
+           version="true"
+           use="true"
+           windowtitle="Test API">
+            <packageset dir="./JCSG/src/main/java/" defaultexcludes="yes">
+   
+            </packageset>
+        </javadoc>
+     </target>
+
+</project>
