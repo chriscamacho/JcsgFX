@@ -2,6 +2,8 @@
 import javax.script.ScriptEngineManager;
 import javax.script.ScriptEngine;
 import javax.script.Invocable;
+import javax.script.ScriptException;
+
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.charset.StandardCharsets;
@@ -10,7 +12,8 @@ import java.io.FileOutputStream;
 import java.io.BufferedReader;
 import java.io.File;
 
-import eu.mihosoft.vrl.v3d.CSG;
+//import eu.mihosoft.vrl.v3d.CSG;
+import eu.mihosoft.jcsg.CSG;
 
 import javafx.application.Application;
 import javafx.stage.Stage;
@@ -19,6 +22,8 @@ import javafx.scene.layout.VBox;
 import javafx.scene.*;
 import javafx.scene.paint.*;
 import javafx.scene.control.*;
+import javafx.scene.control.Alert.*;
+
 import javafx.scene.shape.*;
 import javafx.scene.transform.*;
 import javafx.scene.text.*;
@@ -181,8 +186,12 @@ public class JcsgFX extends Application
             engine.eval(script);
             Invocable inv = (Invocable) engine;
             result = (CSG)inv.invokeFunction("main");
+        } catch (ScriptException e) {
+            Alert alert = new Alert(AlertType.INFORMATION);
+            alert.setTitle("Script error!");
+            alert.setHeaderText(e.getMessage());
+            alert.showAndWait();
         } catch (Exception e) {
-            // TODO *much* better handling required here
             e.printStackTrace();
         }
 

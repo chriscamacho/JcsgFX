@@ -26,7 +26,7 @@
             excludes="**/samples/**"
         >
             <src path="./JCSG/src/main/java/"/>
-            
+            <src path="./VVecMath/src/main/java/"/>
 			<compilerarg value="-Xlint:all" />
 			<!--<compilerarg value="-Werror" />-->
             <!-- maxerrs param must be seperate or space is picked up as a param -->
@@ -41,7 +41,8 @@
         <jar destfile="../libs/JCSG.jar" basedir="build" excludes="**/*.jar"/>
     </target>
 
-    <target name="doc">
+    <target name="doc"
+        description="Make the fine manual..." >
         <javadoc
            destdir="docs/api"
            author="true"
