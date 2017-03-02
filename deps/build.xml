@@ -49,9 +49,8 @@
            version="true"
            use="true"
            windowtitle="Test API">
-            <packageset dir="./JCSG/src/main/java/" defaultexcludes="yes">
-   
-            </packageset>
+            <packageset dir="./JCSG/src/main/java/" defaultexcludes="yes"/>
+            <packageset dir="./VVecMath/src/main/java/" defaultexcludes="yes"/>
         </javadoc>
      </target>
 

@@ -1,57 +1,72 @@
-// TODO check for unused
-import javax.script.ScriptEngineManager;
-import javax.script.ScriptEngine;
-import javax.script.Invocable;
-import javax.script.ScriptException;
 
-import java.nio.file.Files;
-import java.nio.file.Paths;
+import javax.script.*;
+
+import java.nio.file.*;
 import java.nio.charset.StandardCharsets;
-import java.io.PrintStream;
-import java.io.FileOutputStream;
-import java.io.BufferedReader;
-import java.io.File;
+import java.io.*;
 
-//import eu.mihosoft.vrl.v3d.CSG;
 import eu.mihosoft.jcsg.CSG;
 
 import javafx.application.Application;
-import javafx.stage.Stage;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.VBox;
+import javafx.stage.*;
+import javafx.fxml.*;
 import javafx.scene.*;
-import javafx.scene.paint.*;
+import javafx.scene.layout.*;
 import javafx.scene.control.*;
-import javafx.scene.control.Alert.*;
-
-import javafx.scene.shape.*;
+import javafx.scene.shape.MeshView;
+import javafx.scene.paint.Color;
 import javafx.scene.transform.*;
-import javafx.scene.text.*;
-import javafx.beans.binding.Bindings;
-import javafx.geometry.Insets;
 
-import javafx.stage.FileChooser;
-import javafx.stage.FileChooser.ExtensionFilter;
+//import javafx.scene.shape.Box;
+//import javafx.scene.paint.PhongMaterial;
+import javafx.scene.shape.TriangleMesh;
 
-import javafx.event.ActionEvent;
-import javafx.event.EventHandler;
-import javafx.scene.input.MouseEvent;
+import javafx.scene.input.*;
+import javafx.event.*;
 
-public class JcsgFX extends Application
+import java.net.URL;
+
+public class JcsgFX extends Application implements EventHandler<InputEvent>
 {
-    // TODO could probably OO some of this out of existence
-    private Group mainGroup;
-    private MeshView meshView = new MeshView();
-    // TODO Doh apply rotation to object not camera (orbit less useful)
-    private Rotate camRotX = new Rotate(0, Rotate.X_AXIS);
-    private Rotate camRotY = new Rotate(0, Rotate.Y_AXIS);
-    private TextArea textarea;
-    private String script;
+
     private ScriptEngineManager manager = new ScriptEngineManager();
     private ScriptEngine engine = manager.getEngineByName("JavaScript");
-    private Stage mainStage;
-    private CSG result=null;
-        
+//	private CSG result=null;
+	private MeshView meshView = new MeshView();
+	private SubScene scene3d;
+	public Stage mainStage;
+	private Group scene3dGroup = new Group();
+	private Rotate camRotX = new Rotate(0, Rotate.X_AXIS);
+    private Rotate camRotY = new Rotate(0, Rotate.Y_AXIS);
+    private Translate camTrans = new Translate(0,0,-500);
+    private double camDistance=500;
+    private double mousePosX, mousePosY = 0;
+
+    private JcsgFXcontroller uiController;
+
+	private String newScript = "CSG = Java.type(\"eu.mihosoft.jcsg.CSG\")\n"+
+"Extrude = Java.type(\"eu.mihosoft.jcsg.Extrude\")\n"+
+"\n"+
+"Vector3d = Java.type(\"eu.mihosoft.vvecmath.Vector3d\")\n"+
+"Transform = Java.type(\"eu.mihosoft.vvecmath.Transform\")\n"+
+"Matrix3d = Java.type(\"eu.mihosoft.jcsg.Matrix3d\")\n"+
+"\n"+
+"Vertex = Java.type(\"eu.mihosoft.jcsg.Vertex\")\n"+
+"Polygon = Java.type(\"eu.mihosoft.jcsg.Polygon\")\n"+
+"\n"+
+"Sphere = Java.type(\"eu.mihosoft.jcsg.Sphere\")\n"+
+"Cube = Java.type(\"eu.mihosoft.jcsg.Cube\")\n"+
+"Cylinder = Java.type(\"eu.mihosoft.jcsg.Cylinder\")\n"+
+"RoundedCube = Java.type(\"eu.mihosoft.jcsg.RoundedCube\")\n"+
+"\n"+
+"\n"+
+"function main() {\n"+
+"	return new RoundedCube(10)\n"+
+"			.cornerRadius(2)\n"+
+"			.resolution(10)\n"+
+"			.toCSG()\n"+
+"}";
+
     public static void main(String[] args)
     {
         launch(args);
@@ -60,166 +75,147 @@ public class JcsgFX extends Application
     @Override
     public void start(Stage stage)
     {
-        mainStage = stage;
-        mainGroup = new Group();
-        SubScene scene = new SubScene(mainGroup, 800, 600, true, null);
-        VBox controls = createUI();
+		mainStage = stage;
+		Parent root=null;
+        FXMLLoader loader = new FXMLLoader();
+		try {
+			loader.setLocation(getClass().getResource("mainUI.fxml"));
+			root = loader.load();
+			uiController = loader.<JcsgFXcontroller>getController();
+        } catch(Exception e) {
+			e.printStackTrace();
+		}
+		if (root!=null) {
+			uiController.setMain(this);
 
-        scene.setFill(Color.rgb(20, 80, 40));
-        PerspectiveCamera camera = new PerspectiveCamera();
-        scene.setCamera(camera);
+			stage.setTitle("JcsgFX");
+			stage.setScene(new Scene(root));
 
-        //TODO add dolly, maybe pan?
-        //TODO min clip plane for small models?
-        camera.getTransforms().addAll(
-            camRotY, camRotX, new Translate(-400, -300, 950));
+			scene3dGroup = new Group();
+			scene3d = new SubScene(scene3dGroup, 800, 600, true, null);
+			scene3d.setFill(Color.rgb(20, 80, 40));
+			PerspectiveCamera camera = new PerspectiveCamera(true);
+			camera.setFarClip(3000);
+			scene3d.setCamera(camera);
+			camera.getTransforms().addAll(
+					camRotY, camRotX, camTrans);
+			uiController.getGraphicsArea().getChildren().add(scene3d);
+			scene3d.heightProperty().bind(uiController.getGraphicsArea().heightProperty());
+			scene3d.widthProperty().bind(uiController.getGraphicsArea().widthProperty());
 
-        HBox layout = new HBox(
-            controls,
-            scene
-        );
-        stage.setTitle("Model Viewer");
+			scene3d.setOnMousePressed(this);
+			scene3d.setOnMouseDragged(this);
+			scene3d.setOnScroll(this);
 
-        Scene sceneMain = new Scene(layout, Color.LIGHTBLUE);
-        setMouseHandler(sceneMain);
-        stage.setScene(sceneMain);
-        stage.show();
+			System.out.println(scene3dGroup);
+
+			newDoc();
+/*
+			TriangleMesh pyramidMesh = new TriangleMesh();
+			float h = 1.5f;                    // Height
+			float s = 3.0f;                    // Side
+			pyramidMesh.getPoints().addAll(
+					0,    0,    0,            // Point 0 - Top
+					0,    h,    -s/2,         // Point 1 - Front
+					-s/2, h,    0,            // Point 2 - Left
+					s/2,  h,    0,            // Point 3 - Back
+					0,    h,    s/2           // Point 4 - Right
+				);
+
+			pyramidMesh.getFaces().addAll(
+				0,0,  2,0,  1,0,          // Front left face
+				0,0,  1,0,  3,0,          // Front right face
+				0,0,  3,0,  4,0,          // Back right face
+				0,0,  4,0,  2,0,          // Back left face
+				4,0,  1,0,  2,0,          // Bottom rear face
+				4,0,  3,0,  1,0           // Bottom front face
+			);
+			pyramidMesh.getTexCoords().addAll(0,0);
+			meshView = new MeshView(pyramidMesh);
+			meshView.setTranslateX(0);
+			meshView.setTranslateY(0);
+			meshView.setTranslateZ(0);
+*/
+			scene3dGroup.getChildren().add(meshView);
+
+
+			
+			stage.show();
+		} else {
+			System.out.print("not able to load UI");
+		}
     }
 
-    private VBox createUI()
+	void newDoc() {
+		uiController.getCodeArea().setText(newScript);
+	}
+
+	void resetCamera() {
+		camRotX.setAngle(0);
+		camRotY.setAngle(0);
+		camTrans.setZ(-500);
+		camDistance=500;
+	}
+
+	CSG updateCSG()
     {
-        textarea = new TextArea();
-        textarea.setText(script);
-        textarea.setFont(Font.font("Verdana", FontWeight.NORMAL, 18));
-        textarea.setPrefRowCount(20);
+        CSG result = null;
+		System.out.println(scene3dGroup);
 
-        Button updateButton = new Button("Update");
-        updateButton.setOnAction(new EventHandler<ActionEvent>() { 
-            public void handle(ActionEvent event) {
-                updateCSG();
-            }
-        });
-
-        Button loadButton = new Button("Load");
-        loadButton.setOnAction(new EventHandler<ActionEvent>() { 
-            public void handle(ActionEvent event) {
-                script="";
-                String line;
-                FileChooser fileChooser = new FileChooser();
-                fileChooser.setTitle("Open JavaScript");
-                fileChooser.getExtensionFilters().addAll(
-                     new ExtensionFilter("JavaScript Files", "*.js"),
-                     new ExtensionFilter("All Files", "*.*"));
-                File selectedFile = fileChooser.showOpenDialog(mainStage);
- 
-                try {
-                    BufferedReader rd = Files.newBufferedReader(
-                            Paths.get(selectedFile.getAbsolutePath()),
-                            StandardCharsets.UTF_8);
-                    while((line = rd.readLine()) != null) {
-                        script = script + line +"\n";
-                    }
-                } catch (Exception e)
-                {
-                    //TODO
-                }
-                textarea.setText(script);
-                updateCSG();
-            }
-        });
-
-        Button saveButton = new Button("Save");
-        saveButton.setOnAction(new EventHandler<ActionEvent>() { 
-            public void handle(ActionEvent event) {
-                FileChooser fileChooser = new FileChooser();
-                fileChooser.setTitle("Save JavaScript");
-                fileChooser.getExtensionFilters().addAll(
-                     new ExtensionFilter("JavaScript Files", "*.js"),
-                     new ExtensionFilter("All Files", "*.*"));
-                File selectedFile = fileChooser.showSaveDialog(mainStage);
-                try {
-                    Files.write(Paths.get(selectedFile.getAbsolutePath()),
-                            textarea.getText().getBytes());
-                } catch (Exception e) {
-                    // TODO much better feedback required here!
-                }
-            }
-        });
-
-        Button exportButton = new Button("Export");
-        exportButton.setOnAction(new EventHandler<ActionEvent>() { 
-            public void handle(ActionEvent event) {
-                updateCSG();
-                if (result!=null) {
-                    String export = result.toStlString();
-                                    FileChooser fileChooser = new FileChooser();
-                    fileChooser.setTitle("Save STL file");
-                    fileChooser.getExtensionFilters().addAll(
-                        new ExtensionFilter("STereoLithography Files", "*.stl"),
-                        new ExtensionFilter("All Files", "*.*"));
-                    File selectedFile = fileChooser.showSaveDialog(mainStage);
-                    try {
-                        Files.write(Paths.get(selectedFile.getAbsolutePath()),
-                                export.getBytes());
-                    } catch (Exception e) {
-                        // TODO much better feedback required here!
-                    }                    
-                }
-            }
-        });
-        
-        HBox controlLine = new HBox(10);
-        controlLine.getChildren().addAll(loadButton,saveButton,exportButton,updateButton);
-
-        VBox controls = new VBox(10, controlLine);
-        controls.getChildren().add(textarea);
-        controls.setPadding(new Insets(10));
-        return controls;
-    }
-
-    private void updateCSG()
-    {
-        result = null;
-        script = textarea.getText();
+        uiController.getMessageArea().setText("compile\n");
+        String script = uiController.getCodeArea().getText();
+        //System.out.println(script);
         try
         {
             engine.eval(script);
-            Invocable inv = (Invocable) engine;
+            Invocable inv = (Invocable)engine;
             result = (CSG)inv.invokeFunction("main");
         } catch (ScriptException e) {
-            Alert alert = new Alert(AlertType.INFORMATION);
-            alert.setTitle("Script error!");
-            alert.setHeaderText(e.getMessage());
-            alert.showAndWait();
+            uiController.getMessageArea().appendText("Script error!\n");
+            uiController.getMessageArea().appendText(e.getMessage()+"\n");
         } catch (Exception e) {
-            e.printStackTrace();
+            uiController.getMessageArea().appendText("Error!\n");
+            uiController.getMessageArea().appendText(e.getMessage()+"\n");
         }
 
         if (result!=null) {
-            mainGroup.getChildren().remove(meshView);
+
+            scene3dGroup.getChildren().remove(meshView);
             meshView = new MeshView(result.toJavaFXMeshSimple().getMeshes().get(0));
-            mainGroup.getChildren().add(meshView);
+            scene3dGroup.getChildren().add(meshView);
+
+            uiController.getMessageArea().appendText(((TriangleMesh)meshView.getMesh()).getFaces().size()+"\n");
         }
+		uiController.getMessageArea().appendText("Done.\n");
+//		messageArea.appendText(result.toStlString());
+		return result; 
     }
-    
-    private double mousePosX, mousePosY = 0;
 
-    private void setMouseHandler(Scene scene)
-    {
-        scene.setOnMousePressed((MouseEvent me) -> {
-            mousePosX = me.getSceneX();
-            mousePosY = me.getSceneY();
-        });
+    public void handle(InputEvent ie) {
+		//System.out.println(ie);
 
-        scene.setOnMouseDragged((MouseEvent me) -> {
-            double dx = (mousePosX - me.getSceneX()) ;
-            double dy = (mousePosY - me.getSceneY());
+		if (ie.getEventType() == MouseEvent.MOUSE_PRESSED) {
+			mousePosX = ((MouseEvent)ie).getSceneX();
+			mousePosY = ((MouseEvent)ie).getSceneY();
+		}
+
+		if (ie.getEventType() == MouseEvent.MOUSE_DRAGGED) {
+			double dx = -(mousePosX - ((MouseEvent)ie).getSceneX()) ;
+            double dy = (mousePosY - ((MouseEvent)ie).getSceneY());
 
             camRotX.setAngle(camRotX.getAngle() + dy);
             camRotY.setAngle(camRotY.getAngle() + dx);
 
-            mousePosX = me.getSceneX();
-            mousePosY = me.getSceneY();
-        });
-    }
+            mousePosX = ((MouseEvent)ie).getSceneX();
+            mousePosY = ((MouseEvent)ie).getSceneY();
+		}
+		
+		if(ie.getEventType() == ScrollEvent.SCROLL) {
+			//System.out.println( ((ScrollEvent)ie).getDeltaY() );
+			camDistance+= (((ScrollEvent)ie).getDeltaY() / 10.0);
+			if (camDistance<20) camDistance=20;
+			if (camDistance>2500) camDistance=2500;
+			camTrans.setZ(-camDistance);
+		}
+	}
 }

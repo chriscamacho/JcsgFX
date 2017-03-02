@@ -14,6 +14,12 @@ Cylinder = Java.type("eu.mihosoft.jcsg.Cylinder")
 RoundedCube = Java.type("eu.mihosoft.jcsg.RoundedCube")
 
 function main() {
-        return new RoundedCube(30).resolution(8).cornerRadius(4).toCSG();
+	trans = new Transform()
+	cube = new Cube(20,20,1).toCSG()
+	cylinder = new Cylinder(1,15,16).toCSG()
+	sphere = new Sphere(4,32,16).toCSG().
+					transformed(trans.translateZ(15))
+	cube = cube.union(sphere)
+	cube = cube.union(cylinder)
+	return cube
 }
-
