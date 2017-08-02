@@ -47,6 +47,7 @@
         <java fork="true" classname="JcsgFX" >
             <jvmarg value="-DCSGscript=${CSGscript}"/>
             <jvmarg value="-DCSGoutput=${CSGoutput}"/>
+            <jvmarg value="-Dprism.verbose=true"/>
             <classpath refid="classpath"/>
         </java>
     </target>
