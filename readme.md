@@ -2,6 +2,8 @@ This quick rough and ready hack was inspired by
 
 https://github.com/miho/JFXScad
 
+(both relying on https://github.com/miho/JCSG)
+
 For my personal tastes JFXScad had lots of dependencies that could
 be done without, additionally for me JavaScript seemed a better fit than
 Groovy.
